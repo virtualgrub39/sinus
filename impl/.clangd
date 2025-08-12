@@ -14,5 +14,6 @@ CompileFlags:
       "-std=c99",
       "-x", "c",
       "-I../",
+      "-Wc99-designator",
     ]
   Compiler: gcc

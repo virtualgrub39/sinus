@@ -22,6 +22,17 @@ typedef enum sinus_format_e
     SINUS_FORMAT_FLOAT64, // in range -1.0 - 1.0, 64 bit
 } SinusFormat;
 
+static const sinus_ssize_t sinus_format_sizes_bytes[] = {
+    [SINUS_FORMAT_UNKNOWN] = 0, [SINUS_FORMAT_S8] = 1,
+    [SINUS_FORMAT_U8] = 1,      [SINUS_FORMAT_S16] = 2,
+    [SINUS_FORMAT_U16] = 2,     [SINUS_FORMAT_S24_U4] = 4,
+    [SINUS_FORMAT_U24_U4] = 4,  [SINUS_FORMAT_S24_P3] = 3,
+    [SINUS_FORMAT_U24_P3] = 3,  [SINUS_FORMAT_FLOAT] = 4,
+    [SINUS_FORMAT_FLOAT64] = 8,
+};
+
+#define sinus_format_to_size(fmt) sinus_format_sizes_bytes[fmt]
+
 typedef struct sinus_settings_s
 {
     SinusFormat fmt;        // sample format
@@ -46,6 +57,8 @@ int sinus_control_start (SinusContext *sc);
 int sinus_control_pause (SinusContext *sc);
 /* Stop processing frames & Reset internal state */
 int sinus_control_stop (SinusContext *sc);
+/* Process all queued frames and pause */
+int sinus_control_drain (SinusContext *sc);
 
 sinus_ssize_t sinus_frames_write (SinusContext *sc, const void *frames,
                                   uint32_t nframes);

@@ -15,4 +15,4 @@ libsinus-alsa.o: sinus.h impl/sinus_alsa.c
 	gcc -c impl/sinus_alsa.c -o libsinus-alsa.o $(ALSA_CFLAGS)
 
 test: test.c libsinus-alsa.a sinus.h
-	gcc test.c libsinus-alsa.a -o test -lasound
+	gcc test.c libsinus-alsa.a -o test -lasound -std=gnu99
