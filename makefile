@@ -8,7 +8,6 @@ ALSA_LDFLAGS = $(LDFLAGS) -lasound
 ALSA_CFLAGS = $(CFLAGS)
 
 libsinus-alsa.a: libsinus-alsa.o
-# 	gcc libsinus-alsa.o $(ALSA_LDFLAGS) -o libsinus-alsa.a
 	ar rcs libsinus-alsa.a libsinus-alsa.o
 
 libsinus-alsa.o: sinus.h impl/sinus_alsa.c
@@ -16,3 +15,11 @@ libsinus-alsa.o: sinus.h impl/sinus_alsa.c
 
 test: test.c libsinus-alsa.a sinus.h
 	gcc test.c libsinus-alsa.a -o test -lasound -std=gnu99
+
+test_basic: test-basic.c libsinus-alsa.a sinus.h
+	gcc test-basic.c libsinus-alsa.a -o test_basic -lasound -std=gnu99
+
+clean:
+	rm -rf test test_basic *.o *.a
+
+.PHONY: clean all

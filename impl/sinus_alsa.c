@@ -90,7 +90,7 @@ alsa_format_from_sinus (SinusFormat fmt)
 
 static int
 alsa_open_and_configure (SinusContext *sc, const char *devname,
-                         const SinusSettings *ss)
+                         SinusSettings *ss)
 {
     snd_pcm_t *pcm;
 
@@ -145,6 +145,7 @@ alsa_open_and_configure (SinusContext *sc, const char *devname,
         if (err == 0)
         {
             format_accepted = true;
+            TODO("Update settings->fmt to real format");
             break;
         }
     }
@@ -169,6 +170,7 @@ alsa_open_and_configure (SinusContext *sc, const char *devname,
         if (err == 0)
         {
             rate_accepted = true;
+            ss->sample_rate = rates[i];
             break;
         }
     }
@@ -480,13 +482,11 @@ sinus_frames_write_timed (SinusContext *sc, const void *frames,
         {
             if (avail == -EPIPE)
             {
-                /* underrun: prepare and continue (buffer is empty) */
                 snd_pcm_prepare (sc->pcm);
                 continue;
             }
             if (avail == -ESTRPIPE)
             {
-                /* suspended: try to resume, then prepare if needed */
                 int r = snd_pcm_resume (sc->pcm);
                 if (r == -EAGAIN)
                 {
@@ -528,14 +528,12 @@ sinus_frames_write_timed (SinusContext *sc, const void *frames,
         if (to_write > frames_left)
             to_write = frames_left;
 
-        char* ptr = (char*)frames;
+        char *ptr = (char *)frames;
 
         snd_pcm_sframes_t wr = snd_pcm_writei (sc->pcm, ptr, to_write);
         if (wr >= 0)
         {
-            /* wrote wr frames */
-            // ptr += (size_t)wr * sc->settings.hint_min_write_frames;
-            ptr += (size_t)wr * sinus_format_to_size(sc->settings.fmt);
+            ptr += (size_t)wr * sinus_format_to_size (sc->settings.fmt);
             frames_left -= (uint32_t)wr;
             total_written += wr;
             continue;
@@ -543,13 +541,11 @@ sinus_frames_write_timed (SinusContext *sc, const void *frames,
 
         if (wr == -EPIPE)
         {
-            // underrun
             snd_pcm_prepare (sc->pcm);
             continue;
         }
         if (wr == -ESTRPIPE)
         {
-            /* suspended: attempt to resume; if can't, prepare; then continue */
             int r = snd_pcm_resume (sc->pcm);
             if (r == -EAGAIN)
             {
@@ -564,15 +560,12 @@ sinus_frames_write_timed (SinusContext *sc, const void *frames,
         }
         if (wr == -EAGAIN)
         {
-            /* non-blocking device: nothing to write now, wait and retry */
             int w = snd_pcm_wait (sc->pcm, rem_ms);
             if (w <= 0)
                 break;
             continue;
         }
 
-        /* For other errors, try recover; snd_pcm_recover returns >=0 on
-         * success, negative on fatal error */
         {
             int rec = snd_pcm_recover (sc->pcm, (int)wr, 1);
             if (rec < 0)
@@ -594,23 +587,21 @@ sinus_control_drain (SinusContext *sc)
 
     snd_pcm_state_t st = snd_pcm_state (sc->pcm);
 
-    if (!sc->running || st == SND_PCM_STATE_PAUSED) {
+    if (!sc->running || st == SND_PCM_STATE_PAUSED)
+    {
         return -1;
     }
 
-    /* Now call drain() and handle transient ALSA errors (EINTR, ESTRPIPE,
-     * EPIPE) */
     for (;;)
     {
         err = snd_pcm_drain (sc->pcm);
         if (err == 0)
-            break; /* success: all queued frames played */
+            break;
         if (err == -EINTR)
-            continue; /* interrupted by signal — retry */
+            continue;
 
         if (err == -ESTRPIPE)
         {
-            /* suspended: try to resume then retry drain */
             int r;
             while ((r = snd_pcm_resume (sc->pcm)) == -EAGAIN)
                 sleep (1);
@@ -621,22 +612,18 @@ sinus_control_drain (SinusContext *sc)
 
         if (err == -EPIPE)
         {
-            /* underrun/xrun while draining — reset device and return error */
             snd_pcm_prepare (sc->pcm);
             return err;
         }
 
-        /* try recover for other transient errors */
         {
             int r = snd_pcm_recover (sc->pcm, err, 1);
             if (r == 0)
             {
-                /* recovered — retry drain */
                 continue;
             }
             else
             {
-                /* unrecoverable */
                 return r;
             }
         }
@@ -647,17 +634,14 @@ sinus_control_drain (SinusContext *sc)
     {
         if (err == -ENOSYS || err == -EOPNOTSUPP)
         {
-            /* pause not supported: keep prepared state */
             snd_pcm_prepare (sc->pcm);
         }
         else if (err == -ESTRPIPE)
         {
-            /* suspended: try prepare */
             snd_pcm_prepare (sc->pcm);
         }
         else
         {
-            /* any other error: ensure device is prepared */
             snd_pcm_prepare (sc->pcm);
         }
     }
@@ -674,17 +658,14 @@ sinus_frames_get_n_frames_buffered (SinusContext *sc)
     snd_pcm_sframes_t avail = 0;
     snd_pcm_sframes_t delay = 0;
 
-    /* Try the combined helper (avail + delay in sync) */
     int err = snd_pcm_avail_delay (sc->pcm, &avail, &delay);
     if (err == 0)
     {
-        /* delay is the number of frames queued to be played */
-        if (delay < 0) /* defensive: negative delay can happen on suspend */
+        if (delay < 0)
             return 0;
         return (sinus_ssize_t)delay;
     }
 
-    /* If avail_delay isn't supported or failed, try status() + get_delay() */
     if (err == -ENOSYS || err == -EOPNOTSUPP || err < 0)
     {
         snd_pcm_status_t *status;
@@ -699,28 +680,23 @@ sinus_frames_get_n_frames_buffered (SinusContext *sc)
         }
     }
 
-    /* Handle common ALSA error codes conservatively */
     if (err == -EPIPE)
     {
-        /* underrun — buffer is effectively empty after prepare */
         snd_pcm_prepare (sc->pcm);
         return 0;
     }
 
     if (err == -ESTRPIPE)
     {
-        /* suspended — try to resume; but conservatively return 0 */
         int r = snd_pcm_resume (sc->pcm);
         if (r < 0)
             snd_pcm_prepare (sc->pcm);
         return 0;
     }
 
-    /* Other error: try recover once, then query again */
-    snd_pcm_sframes_t rec = snd_pcm_recover (sc->pcm, err, 1);
+    int rec = snd_pcm_recover (sc->pcm, err, 1);
     if (rec >= 0)
     {
-        /* try avail_delay again */
         if (snd_pcm_avail_delay (sc->pcm, &avail, &delay) == 0)
         {
             if (delay < 0)
@@ -729,7 +705,6 @@ sinus_frames_get_n_frames_buffered (SinusContext *sc)
         }
     }
 
-    /* If we reach here, return a negative value so caller can know it failed */
     return (sinus_ssize_t)err;
 }
 
@@ -737,28 +712,57 @@ sinus_ssize_t
 sinus_frames_get_n_frames_free (SinusContext *sc)
 {
     snd_pcm_sframes_t nframes = snd_pcm_avail_update (sc->pcm);
-    // TODO ("Fancy error handling");
+
+    if (nframes == -ENOSYS || nframes == -EOPNOTSUPP || nframes < 0)
+    {
+        snd_pcm_status_t *status;
+        snd_pcm_status_alloca (&status);
+        int err = snd_pcm_status (sc->pcm, status);
+
+        if (err == 0)
+        {
+            nframes = snd_pcm_status_get_avail (status);
+            if (nframes < 0)
+                return 0;
+            return (sinus_ssize_t)nframes;
+        }
+    }
+
+    if (nframes == -EPIPE)
+    {
+        snd_pcm_prepare (sc->pcm);
+        return 0;
+    }
+
+    if (nframes == -ESTRPIPE)
+    {
+        int r = snd_pcm_resume (sc->pcm);
+        if (r < 0)
+            snd_pcm_prepare (sc->pcm);
+        return 0;
+    }
+
+    if (snd_pcm_recover (sc->pcm, nframes, 1) >= 0)
+        return sinus_frames_get_n_frames_free (sc);
+
     return nframes;
 }
 
 uint32_t
 sinus_info_get_sample_rate (SinusContext *sc)
 {
-    (void)sc;
-    TODO ("sinus_info_get_sample_rate");
-    return -1;
+    // TODO: get straight from ALSA?
+    return sc->settings.sample_rate; // updated at sinus_context_init
 }
+
 uint32_t
 sinus_info_get_channels (SinusContext *sc)
 {
-    (void)sc;
-    TODO ("sinus_info_get_channels");
-    return -1;
+    return sc->settings.channels;
 }
+
 SinusFormat
 sinus_info_get_format (SinusContext *sc)
 {
-    (void)sc;
-    TODO ("sinus_info_get_format");
-    return -1;
+    return sc->settings.fmt;
 }
