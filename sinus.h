@@ -2,6 +2,9 @@
 #define _SINUS_H
 
 #include <stdint.h>
+#ifndef SINUSDEF
+#define SINUSDEF
+#endif
 
 typedef int64_t sinus_ssize_t;
 
@@ -47,34 +50,36 @@ typedef struct sinus_settings_s
 
 void sinus_settings_default (SinusSettings *ss);
 
-int sinus_context_init (SinusContext **sc, const SinusSettings *ss,
-                        void *user_data);
-void sinus_context_deinit (SinusContext *sc);
+SINUSDEF int sinus_context_init (SinusContext **sc, const SinusSettings *ss,
+                                 void *user_data);
+SINUSDEF void sinus_context_deinit (SinusContext *sc);
 
 /* Start processing frames */
-int sinus_control_start (SinusContext *sc);
+SINUSDEF int sinus_control_start (SinusContext *sc);
 /* Stop processing frames */
-int sinus_control_pause (SinusContext *sc);
+SINUSDEF int sinus_control_pause (SinusContext *sc);
 /* Stop processing frames & Reset internal state */
-int sinus_control_stop (SinusContext *sc);
+SINUSDEF int sinus_control_stop (SinusContext *sc);
 /* Process all queued frames and pause */
-int sinus_control_drain (SinusContext *sc);
+SINUSDEF int sinus_control_drain (SinusContext *sc);
 
-sinus_ssize_t sinus_frames_write (SinusContext *sc, const void *frames,
-                                  uint32_t nframes);
-sinus_ssize_t sinus_frames_write_timed (SinusContext *sc, const void *frames,
-                                        uint32_t nframes, uint32_t timeout_us);
-sinus_ssize_t sinus_frames_get_n_frames_buffered (SinusContext *sc);
-sinus_ssize_t sinus_frames_get_n_frames_free (SinusContext *sc);
+SINUSDEF sinus_ssize_t sinus_frames_write (SinusContext *sc, const void *frames,
+                                           uint32_t nframes);
+SINUSDEF sinus_ssize_t sinus_frames_write_timed (SinusContext *sc,
+                                                 const void *frames,
+                                                 uint32_t nframes,
+                                                 uint32_t timeout_us);
+SINUSDEF sinus_ssize_t sinus_frames_get_n_frames_buffered (SinusContext *sc);
+SINUSDEF sinus_ssize_t sinus_frames_get_n_frames_free (SinusContext *sc);
 
-uint32_t sinus_info_get_sample_rate (SinusContext *sc);
-uint32_t sinus_info_get_channels (SinusContext *sc);
-SinusFormat sinus_info_get_format (SinusContext *sc);
+SINUSDEF uint32_t sinus_info_get_sample_rate (SinusContext *sc);
+SINUSDEF uint32_t sinus_info_get_channels (SinusContext *sc);
+SINUSDEF SinusFormat sinus_info_get_format (SinusContext *sc);
 
 /* MUTUALLY EXCLUSIVE WITH sinus_frames_write* FUNCTIONS !!!*/
 typedef sinus_ssize_t (*SinusFillCallback) (void *frames,
                                             uint32_t frames_needed);
-sinus_ssize_t sinus_frames_fill_callback_set (SinusContext *sc,
-                                              SinusFillCallback cb);
+SINUSDEF sinus_ssize_t sinus_frames_fill_callback_set (SinusContext *sc,
+                                                       SinusFillCallback cb);
 
 #endif
