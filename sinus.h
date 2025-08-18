@@ -2,11 +2,17 @@
 #define _SINUS_H
 
 #include <stdint.h>
+
 #ifndef SINUSDEF
 #define SINUSDEF
 #endif
 
+#ifndef SINUS_SSIZE_T_DEFINED
+// TODO: move stdint inclusion here
 typedef int64_t sinus_ssize_t;
+#endif
+
+// TODO: replace all uint32_t's with some re-definable type
 
 typedef struct SinusContext SinusContext;
 
@@ -48,7 +54,7 @@ typedef struct sinus_settings_s
     uint32_t hint_min_write_frames; // minimum efficient write size
 } SinusSettings;
 
-void sinus_settings_default (SinusSettings *ss);
+SINUSDEF void sinus_settings_default (SinusSettings *ss);
 
 SINUSDEF int sinus_context_init (SinusContext **sc, const SinusSettings *ss,
                                  void *user_data);

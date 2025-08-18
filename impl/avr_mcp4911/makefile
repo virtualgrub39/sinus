@@ -1,6 +1,6 @@
-all: sinus.elf
+all: sinus.o
 
-sinus.elf: ../../sinus.h
+sinus.o: ../../sinus.h
 
 MCU = attiny85
 F_CPU = 8000000
@@ -38,10 +38,10 @@ MSG_FLASH = Preparing hex file:
 # 	# $(OBJCOPY) -O ihex -j .text -j .data $< $@
 # 	$(OBJCOPY) -O ihex -R ..eeprom $< $@
 
-%.elf: $(OBJ)
-	@echo
-	@echo $(MSG_LINKING) $@
-	$(CC) -mmcu=$(MCU) $(LDFLAGS) $^ --output $(@F)
+# %.elf: $(OBJ)
+# 	@echo
+# 	@echo $(MSG_LINKING) $@
+# 	$(CC) -mmcu=$(MCU) $(LDFLAGS) $^ --output $(@F)
 
 %.o : %.c
 	@echo $(MSG_COMPILING) $<
